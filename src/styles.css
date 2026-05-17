@@ -304,11 +304,15 @@ select {
 
 .date-filter-row {
   display: grid;
-  grid-template-columns: max-content 308px;
+  grid-template-columns: max-content max-content;
   align-items: center;
   justify-content: end;
   gap: 8px;
   width: 100%;
+}
+
+.date-filter-row.range-mode {
+  grid-template-columns: max-content 308px;
 }
 
 .date-preset-group,
@@ -903,7 +907,8 @@ tbody tr:hover {
     justify-content: flex-start;
   }
 
-  .date-filter-row {
+  .date-filter-row,
+  .date-filter-row.range-mode {
     grid-template-columns: 1fr;
     justify-content: stretch;
   }

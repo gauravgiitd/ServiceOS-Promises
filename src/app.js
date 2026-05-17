@@ -231,7 +231,7 @@ function renderDateFilter() {
         <button class="${!isDay ? "active" : ""}" data-date-mode="range">Range</button>
       </div>
     </div>
-    <div class="date-filter-row">
+    <div class="date-filter-row ${isDay ? "day-mode" : "range-mode"}">
       ${isDay ? singleDayControls() : rangeControls()}
     </div>
   `;
