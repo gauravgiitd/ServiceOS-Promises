@@ -42,6 +42,8 @@ const state = {
   showExcluded: false,
 };
 
+let dataRefreshInFlight = null;
+
 const els = {
   dataMeta: document.getElementById("dataMeta"),
   syncButton: document.getElementById("syncButton"),
@@ -72,11 +74,52 @@ async function init() {
 
 async function loadData() {
   const [records, metadata] = await Promise.all([
-    fetch(`${DATA_URL}?t=${Date.now()}`).then((r) => r.json()),
-    fetch(`${META_URL}?t=${Date.now()}`).then((r) => r.json()),
+    loadRecords(),
+    loadMetadata(),
   ]);
   state.records = records;
   state.metadata = metadata;
+}
+
+function loadRecords() {
+  return fetch(`${DATA_URL}?t=${Date.now()}`).then((r) => r.json());
+}
+
+function loadMetadata() {
+  return fetch(`${META_URL}?t=${Date.now()}`).then((r) => r.json());
+}
+
+async function refreshDataIfChanged() {
+  if (dataRefreshInFlight) return dataRefreshInFlight;
+
+  dataRefreshInFlight = (async () => {
+    const latestMetadata = await loadMetadata();
+    if (metadataVersion(latestMetadata) === metadataVersion(state.metadata)) return false;
+
+    state.records = await loadRecords();
+    state.metadata = latestMetadata;
+    applyRouteFromUrl({ replaceMissing: true });
+    renderMeta();
+    render();
+    return true;
+  })();
+
+  try {
+    return await dataRefreshInFlight;
+  } finally {
+    dataRefreshInFlight = null;
+  }
+}
+
+function metadataVersion(metadata) {
+  if (!metadata) return "";
+  const range = metadata.date_range || {};
+  return [
+    metadata.generated_at || "",
+    metadata.record_count || "",
+    range.start_date || "",
+    range.end_date || "",
+  ].join("|");
 }
 
 function renderMeta() {
@@ -526,9 +569,17 @@ function rangePresetForDates(startDate, endDate) {
   return "custom";
 }
 
-window.addEventListener("hashchange", () => {
+window.addEventListener("hashchange", async () => {
   applyRouteFromUrl();
-  render();
+  if (!(await refreshDataIfChanged())) render();
+});
+
+window.addEventListener("focus", () => {
+  refreshDataIfChanged().catch((error) => console.error(error));
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshDataIfChanged().catch((error) => console.error(error));
 });
 
 function renderCities() {
