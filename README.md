@@ -6,13 +6,14 @@ This folder is meant to be self-contained enough that a new Codex chat opened he
 
 ## Current App
 
-The app is a static local web app:
+The app is a local web app:
 
 - `index.html`
 - `src/app.js`
 - `src/styles.css`
 - `data/promise_instances.json`
 - `data/metadata.json`
+- `scripts/app_server.py`
 
 It shows:
 
@@ -34,6 +35,7 @@ It shows:
   - Browser back/forward controls navigation; the app does not use an explicit in-page back button.
 - Breadcrumb navigation follows `Cities -> <City> -> <Agent>` and uses the same URL routes as browser back/forward.
 - Metric cards show a daily trend with per-day values on hover. Day mode shows the selected day plus the previous six days; range mode shows one point per selected date. Clicking a trend day navigates the current global, city, or agent view to that day.
+- Sync button next to the data freshness line. When run through `scripts/app_server.py`, it checks BigQuery for newer source task updates and only runs the full export when needed.
 
 The timeline uses a time-of-day axis instead of one absolute multi-day axis, so one-hour promise slots remain readable even for 7-day or 14-day views.
 
@@ -42,13 +44,19 @@ The timeline uses a time-of-day axis instead of one absolute multi-day axis, so 
 From this folder:
 
 ```bash
-python3 -m http.server 5174 --bind 127.0.0.1
+python3 scripts/app_server.py
 ```
 
 Open:
 
 ```text
 http://127.0.0.1:5174/
+```
+
+The older static server still works for read-only viewing, but it cannot run BigQuery sync:
+
+```bash
+python3 -m http.server 5174 --bind 127.0.0.1
 ```
 
 ## Refresh App Data
@@ -73,6 +81,20 @@ It writes:
 
 The query currently exports the last 14 calendar days including today in `Asia/Kolkata`.
 
+The app server exposes the same refresh path through:
+
+```text
+POST /api/sync
+GET /api/sync/status
+```
+
+Sync flow:
+
+1. Read `data/metadata.json` for the last BigQuery source watermark.
+2. Run a lightweight BigQuery watermark query against task version rows in the current 14-day window.
+3. If no newer source rows are found, update the sync status without rewriting app data.
+4. If newer source rows are found, run `sql/promise_instances_last14.sql` and rewrite `data/promise_instances.csv`, `data/promise_instances.json`, and `data/metadata.json`.
+
 ## BigQuery Auth
 
 This workspace expects the `bq` CLI to be available and authenticated. The refresh script automatically uses this service account file if present:
@@ -86,6 +108,12 @@ It sets these environment variables for the subprocess:
 ```text
 CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
 GOOGLE_APPLICATION_CREDENTIALS
+```
+
+Credentials stay outside the browser code. To override the credential path for the local app server or refresh script, set:
+
+```bash
+export SERVICEOS_GBQ_CREDENTIALS=/absolute/path/to/service-account.json
 ```
 
 ## Key SQL Files

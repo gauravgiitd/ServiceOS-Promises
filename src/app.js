@@ -44,6 +44,8 @@ const state = {
 
 const els = {
   dataMeta: document.getElementById("dataMeta"),
+  syncButton: document.getElementById("syncButton"),
+  syncStatus: document.getElementById("syncStatus"),
   dateFilterRoot: document.getElementById("dateFilterRoot"),
   cityView: document.getElementById("cityView"),
   agentView: document.getElementById("agentView"),
@@ -55,16 +57,12 @@ init();
 
 async function init() {
   try {
-    const [records, metadata] = await Promise.all([
-      fetch(DATA_URL).then((r) => r.json()),
-      fetch(META_URL).then((r) => r.json()),
-    ]);
-    state.records = records;
-    state.metadata = metadata;
+    await loadData();
     applyDatePreset("yesterday", { rerender: false });
     applyRouteFromUrl({ replaceMissing: true });
     renderMeta();
     render();
+    initSyncControls();
   } catch (error) {
     els.cityView.innerHTML = `<div class="empty-state">Could not load generated promise data. Run <code>python3 scripts/refresh_data.py</code> and refresh this page.</div>`;
     els.dataMeta.textContent = "Data not available";
@@ -72,11 +70,78 @@ async function init() {
   }
 }
 
+async function loadData() {
+  const [records, metadata] = await Promise.all([
+    fetch(`${DATA_URL}?t=${Date.now()}`).then((r) => r.json()),
+    fetch(`${META_URL}?t=${Date.now()}`).then((r) => r.json()),
+  ]);
+  state.records = records;
+  state.metadata = metadata;
+}
+
 function renderMeta() {
   const meta = state.metadata || {};
   const range = meta.date_range ? `${meta.date_range.start_date} to ${meta.date_range.end_date}` : "no date range";
   const generated = meta.generated_at ? `generated ${meta.generated_at}` : "not generated yet";
   els.dataMeta.textContent = `${formatInt(meta.record_count || state.records.length)} promise instances, ${range}, ${generated}`;
+}
+
+async function initSyncControls() {
+  if (!els.syncButton) return;
+  els.syncButton.addEventListener("click", startSync);
+  try {
+    const response = await fetch("/api/sync/status");
+    if (!response.ok) throw new Error("Sync API unavailable");
+    const payload = await response.json();
+    els.syncButton.disabled = Boolean(payload.sync?.running);
+    if (payload.sync?.running) pollSync();
+  } catch (error) {
+    els.syncButton.disabled = true;
+    els.syncButton.title = "Run with scripts/app_server.py to enable BigQuery sync";
+  }
+}
+
+async function startSync() {
+  setSyncUi({ running: true, message: "Starting BigQuery sync..." });
+  try {
+    const response = await fetch("/api/sync", { method: "POST" });
+    if (!response.ok) throw new Error("Could not start sync");
+    pollSync();
+  } catch (error) {
+    setSyncUi({ running: false, error: String(error.message || error) });
+  }
+}
+
+async function pollSync() {
+  try {
+    const response = await fetch(`/api/sync/status?t=${Date.now()}`);
+    if (!response.ok) throw new Error("Could not read sync status");
+    const payload = await response.json();
+    setSyncUi(payload.sync);
+    if (payload.sync?.running) {
+      setTimeout(pollSync, 1500);
+      return;
+    }
+    if (!payload.sync?.error && payload.sync?.result) {
+      await loadData();
+      applyRouteFromUrl({ replaceMissing: true });
+      renderMeta();
+      render();
+    }
+  } catch (error) {
+    setSyncUi({ running: false, error: String(error.message || error) });
+  }
+}
+
+function setSyncUi(sync) {
+  if (!els.syncButton || !els.syncStatus) return;
+  els.syncButton.disabled = Boolean(sync.running);
+  els.syncButton.textContent = sync.running ? "Syncing..." : "Sync";
+  const message = sync.error || sync.message || "";
+  els.syncStatus.hidden = !message;
+  els.syncStatus.textContent = message;
+  els.syncStatus.classList.toggle("error", Boolean(sync.error));
+  els.syncStatus.classList.toggle("running", Boolean(sync.running));
 }
 
 function render() {

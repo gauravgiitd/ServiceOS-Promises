@@ -10,7 +10,11 @@
     <header class="app-header">
       <div>
         <h1>ServiceOS Promises</h1>
-        <p id="dataMeta">Loading promise data...</p>
+        <div class="meta-row">
+          <p id="dataMeta">Loading promise data...</p>
+          <button id="syncButton" class="sync-button" type="button" disabled>Sync</button>
+          <span id="syncStatus" class="sync-status" hidden></span>
+        </div>
       </div>
       <div class="header-actions">
         <div id="dateFilterRoot" class="date-filter" aria-label="Date filter"></div>

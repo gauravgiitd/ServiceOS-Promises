@@ -73,9 +73,59 @@ h3 {
 }
 
 #dataMeta {
-  margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.sync-button {
+  height: 28px;
+  border-color: #b2dfdb;
+  background: #e6fffb;
+  color: #0f766e;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.sync-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sync-status.running::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 2px solid #b2dfdb;
+  border-top-color: #0f766e;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.sync-status.error {
+  color: var(--red);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 main {
