@@ -718,6 +718,7 @@ function trendSeries(daily, key, options = {}) {
     showLabel: index === 0 || index === daily.length - 1 || (index % labelStep === 0 && index <= daily.length - 1 - labelStep),
     value: values[index],
     formatted: options.format === "pct" ? `${formatPct(values[index])}%` : formatInt(values[index]),
+    compact: options.format === "pct" ? `${Math.round(values[index])}%` : formatCompact(values[index]),
     height: Math.max(4, Math.round((values[index] / max) * 42)),
   }));
 }
@@ -740,6 +741,7 @@ function trendPopover(label, trend) {
 function trendBar(point) {
   return `
     <button class="trend-bar-wrap" type="button" data-trend-date="${escapeAttr(point.date)}" data-tooltip="${escapeAttr(`${point.label}\n${point.formatted}\nClick to view this day`)}" aria-label="View ${escapeAttr(point.label)}">
+      <div class="trend-bar-value">${escapeHtml(point.compact)}</div>
       <div class="trend-bar" style="height:${point.height}px"></div>
       <div class="trend-bar-label">${point.showLabel ? escapeHtml(point.label) : ""}</div>
     </button>
@@ -1105,6 +1107,12 @@ function shortDate(dateString) {
 
 function formatInt(value) {
   return Math.round(Number(value || 0)).toLocaleString("en-IN");
+}
+
+function formatCompact(value) {
+  const number = Number(value || 0);
+  if (Math.abs(number) >= 1000) return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}k`;
+  return Math.round(number).toLocaleString("en-IN");
 }
 
 function formatPct(value) {
