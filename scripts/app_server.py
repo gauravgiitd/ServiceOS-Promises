@@ -56,9 +56,20 @@ class AppHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def is_uncached_path(self):
+        path = urlparse(self.path).path
+        return (
+            path in {"/", "/index.html"}
+            or path.startswith("/src/")
+            or path.startswith("/data/")
+            or path.startswith("/api/")
+        )
+
     def end_headers(self):
-        if self.path.startswith("/data/") or self.path.startswith("/api/"):
-            self.send_header("Cache-Control", "no-store")
+        if self.is_uncached_path():
+            self.send_header("Cache-Control", "no-store, max-age=0, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         super().end_headers()
 
     def do_GET(self):
@@ -69,7 +80,19 @@ class AppHandler(SimpleHTTPRequestHandler):
                 "metadata": metadata_payload(),
             })
             return
+        self.disable_conditional_cache()
         super().do_GET()
+
+    def do_HEAD(self):
+        self.disable_conditional_cache()
+        super().do_HEAD()
+
+    def disable_conditional_cache(self):
+        if not self.is_uncached_path():
+            return
+        for header in ("If-Modified-Since", "If-None-Match"):
+            if header in self.headers:
+                del self.headers[header]
 
     def do_POST(self):
         path = urlparse(self.path).path
