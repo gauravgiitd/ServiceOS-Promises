@@ -44,10 +44,13 @@ body {
 
 .header-actions {
   display: flex;
+  flex: 0 0 650px;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 520px;
+  width: 650px;
 }
 
 h1,
@@ -243,11 +246,13 @@ select {
   display: grid;
   gap: 8px;
   justify-items: end;
+  width: 100%;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+  box-sizing: border-box;
 }
 
 .date-filter-main {
@@ -305,14 +310,28 @@ select {
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
 }
 
-.date-filter-row,
+.date-filter-row {
+  display: grid;
+  grid-template-columns: max-content 308px;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+  width: 100%;
+}
+
 .date-preset-group,
 .date-range-inputs {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.date-range-inputs {
+  display: grid;
+  grid-template-columns: 138px 16px 138px;
+  justify-items: stretch;
 }
 
 .preset-chip {
@@ -333,15 +352,24 @@ select {
 }
 
 .date-input {
-  min-width: 138px;
+  width: 138px;
+  min-width: 0;
   height: 30px;
   padding: 0 8px;
   font-size: 12px;
+  box-sizing: border-box;
 }
 
-.date-range-inputs span {
+.date-range-separator {
   color: var(--muted);
   font-size: 12px;
+  text-align: center;
+}
+
+.date-range-placeholder,
+.date-input-placeholder {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .checkbox {
@@ -872,15 +900,34 @@ tbody tr:hover {
 
   .header-actions,
   .date-filter {
+    flex: none;
     justify-items: stretch;
     width: 100%;
+    min-width: 0;
   }
 
   .date-filter-main,
-  .date-filter-row,
   .date-preset-group,
   .date-range-inputs {
     justify-content: flex-start;
+  }
+
+  .date-filter-row {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .date-preset-group {
+    flex-wrap: wrap;
+  }
+
+  .date-range-inputs {
+    grid-template-columns: minmax(120px, 1fr) 16px minmax(120px, 1fr);
+    width: 100%;
+  }
+
+  .date-input {
+    width: 100%;
   }
 
   .date-filter-value,

@@ -271,7 +271,11 @@ function singleDayControls() {
       ${datePresetButton("yesterday", "Yesterday")}
       ${datePresetButton("dayBefore", "Day before")}
     </div>
-    <input id="singleDateInput" class="date-input" type="date" min="${min}" max="${max}" value="${value}" />
+    <div class="date-range-inputs single-date-inputs">
+      <input id="singleDateInput" class="date-input" type="date" min="${min}" max="${max}" value="${value}" />
+      <span class="date-range-separator date-range-placeholder" aria-hidden="true">to</span>
+      <span class="date-input date-input-placeholder" aria-hidden="true"></span>
+    </div>
   `;
 }
 
@@ -285,7 +289,7 @@ function rangeControls() {
     </div>
     <div class="date-range-inputs">
       <input id="rangeStartInput" class="date-input" type="date" min="${min}" max="${max}" value="${range.start}" />
-      <span>to</span>
+      <span class="date-range-separator">to</span>
       <input id="rangeEndInput" class="date-input" type="date" min="${min}" max="${max}" value="${range.end}" />
     </div>
   `;
