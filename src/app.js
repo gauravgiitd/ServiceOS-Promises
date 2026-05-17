@@ -480,7 +480,7 @@ function renderCities() {
         <p>Click a city to inspect agent-level promise performance.</p>
       </div>
     </div>
-    ${metricGrid(metrics(visibleRecords))}
+    ${metricGrid(metrics(visibleRecords), state.records)}
     <div class="table-wrap">
       <table>
         <thead>
@@ -538,7 +538,10 @@ function renderAgents() {
         <input id="agentSearch" type="search" placeholder="Search agent" value="${escapeHtml(state.agentSearch)}" />
       </div>
     </div>
-    ${metricGrid(metrics(cityRecords))}
+    ${metricGrid(
+      metrics(cityRecords),
+      state.records.filter((r) => (r.city_name || "Unknown") === state.selectedCity),
+    )}
     <div class="table-wrap">
       <table>
         <thead>
@@ -602,7 +605,12 @@ function renderTimelineView() {
         </label>
       </div>
     </div>
-    ${metricGrid(metrics(agentRecordsAll))}
+    ${metricGrid(
+      metrics(agentRecordsAll),
+      state.records
+        .filter((r) => (r.city_name || "Unknown") === state.selectedCity)
+        .filter((r) => String(r.agent_id || "unknown") === String(state.selectedAgentId)),
+    )}
     <div class="legend">
       <span class="legend-item"><span class="legend-swatch" style="background: var(--green)"></span>Met</span>
       <span class="legend-item"><span class="legend-swatch" style="background: var(--red)"></span>Not met, no blocker</span>
@@ -640,27 +648,107 @@ function breadcrumbItem(item) {
   return `<li><a class="breadcrumb-link" href="${escapeAttr(item.href)}">${label}</a></li>`;
 }
 
-function metricGrid(m) {
+function metricGrid(m, trendRecords) {
+  const trends = metricTrends(trendRecords);
   return `
     <div class="metric-grid">
-      ${metricCard("Success", `${formatPct(m.success_pct)}%`, `${formatInt(m.success_count)} successful`)}
-      ${metricCard("Valid Promises", formatInt(m.valid_promises), `${formatInt(m.total_promises)} total promises`)}
-      ${metricCard("No-Blocker Misses", formatInt(m.not_met_and_no_blockers_count), `${formatPct(m.no_blocker_pct)}% of valid`)}
-      ${metricCard("Late Reschedules", formatInt(m.late_reschedule_count), `${formatPct(m.late_reschedule_pct)}% of valid`)}
-      ${metricCard("Late Cancels", formatInt(m.late_cancel_count), `${formatPct(m.late_cancel_pct)}% of valid`)}
-      ${metricCard("Tasks", formatInt(m.total_tasks), `${formatInt(m.excluded_count)} excluded promises`)}
+      ${metricCard("Success", `${formatPct(m.success_pct)}%`, `${formatInt(m.success_count)} successful`, trends.success_pct)}
+      ${metricCard("Valid Promises", formatInt(m.valid_promises), `${formatInt(m.total_promises)} total promises`, trends.valid_promises)}
+      ${metricCard("No-Blocker Misses", formatInt(m.not_met_and_no_blockers_count), `${formatPct(m.no_blocker_pct)}% of valid`, trends.not_met_and_no_blockers_count)}
+      ${metricCard("Late Reschedules", formatInt(m.late_reschedule_count), `${formatPct(m.late_reschedule_pct)}% of valid`, trends.late_reschedule_count)}
+      ${metricCard("Late Cancels", formatInt(m.late_cancel_count), `${formatPct(m.late_cancel_pct)}% of valid`, trends.late_cancel_count)}
+      ${metricCard("Tasks", formatInt(m.total_tasks), `${formatInt(m.excluded_count)} excluded promises`, trends.total_tasks)}
     </div>
   `;
 }
 
-function metricCard(label, value, sub) {
+function metricCard(label, value, sub, trend) {
   return `
-    <div class="metric">
+    <div class="metric" tabindex="0">
       <div class="label">${escapeHtml(label)}</div>
       <div class="value">${escapeHtml(value)}</div>
       <div class="sub">${escapeHtml(sub)}</div>
+      ${trendPopover(label, trend)}
     </div>
   `;
+}
+
+function metricTrends(records) {
+  const days = trendDays();
+  const recordsByDate = new Map(days.map((day) => [day, []]));
+  records.forEach((record) => {
+    if (!recordsByDate.has(record.promise_date)) return;
+    recordsByDate.get(record.promise_date).push(record);
+  });
+
+  const daily = days.map((day) => {
+    const dayMetrics = metrics(recordsByDate.get(day) || []);
+    return { day, metrics: dayMetrics };
+  });
+
+  return {
+    success_pct: trendSeries(daily, "success_pct", { format: "pct" }),
+    valid_promises: trendSeries(daily, "valid_promises"),
+    not_met_and_no_blockers_count: trendSeries(daily, "not_met_and_no_blockers_count"),
+    late_reschedule_count: trendSeries(daily, "late_reschedule_count"),
+    late_cancel_count: trendSeries(daily, "late_cancel_count"),
+    total_tasks: trendSeries(daily, "total_tasks"),
+  };
+}
+
+function trendDays() {
+  const active = activeDateRange();
+  const start = state.dateFilter.mode === "single" ? addDays(active.end, -6) : active.start;
+  const days = [];
+  let current = start;
+  while (current <= active.end) {
+    days.push(current);
+    current = addDays(current, 1);
+  }
+  return days;
+}
+
+function trendSeries(daily, key, options = {}) {
+  const values = daily.map((entry) => Number(entry.metrics[key] || 0));
+  const max = Math.max(...values, options.format === "pct" ? 100 : 1);
+  const labelStep = daily.length <= 7 ? 1 : Math.ceil((daily.length - 1) / 4);
+  return daily.map((entry, index) => ({
+    date: entry.day,
+    label: shortDate(entry.day),
+    showLabel: index === 0 || index === daily.length - 1 || (index % labelStep === 0 && index <= daily.length - 1 - labelStep),
+    value: values[index],
+    formatted: options.format === "pct" ? `${formatPct(values[index])}%` : formatInt(values[index]),
+    height: Math.max(4, Math.round((values[index] / max) * 42)),
+  }));
+}
+
+function trendPopover(label, trend) {
+  return `
+    <div class="metric-trend" role="presentation">
+      <div class="metric-trend-head">
+        <span>${escapeHtml(label)} trend</span>
+        <small>${escapeHtml(trendWindowLabel())}</small>
+      </div>
+      <div class="trend-bars">
+        ${trend.map(trendBar).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function trendBar(point) {
+  return `
+    <div class="trend-bar-wrap" data-tooltip="${escapeAttr(`${point.label}\n${point.formatted}`)}">
+      <div class="trend-bar" style="height:${point.height}px"></div>
+      <div class="trend-bar-label">${point.showLabel ? escapeHtml(point.label) : ""}</div>
+    </div>
+  `;
+}
+
+function trendWindowLabel() {
+  const days = trendDays();
+  if (state.dateFilter.mode === "single") return "Last 7 days";
+  return days.length === 1 ? "Selected day" : `${days.length} days`;
 }
 
 function cityRow(row) {
@@ -991,6 +1079,10 @@ function formatDateTime(value) {
 function formatDate(value) {
   const dt = parseTs(value);
   return dt ? dateFmt.format(dt) : "";
+}
+
+function shortDate(dateString) {
+  return dateFmt.format(new Date(`${dateString}T00:00:00`));
 }
 
 function formatInt(value) {

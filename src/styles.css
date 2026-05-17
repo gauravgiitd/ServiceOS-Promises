@@ -331,6 +331,7 @@ button:hover {
 }
 
 .metric {
+  position: relative;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -352,6 +353,95 @@ button:hover {
   margin-top: 2px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.metric-trend {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: 340px;
+  max-width: calc(100vw - 48px);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.metric:nth-child(5) .metric-trend,
+.metric:nth-child(6) .metric-trend {
+  right: 0;
+  left: auto;
+}
+
+.metric:hover,
+.metric:focus-within {
+  border-color: #b2dfdb;
+  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.1);
+}
+
+.metric:hover .metric-trend,
+.metric:focus-within .metric-trend {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.metric-trend-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.metric-trend-head small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.trend-bars {
+  display: flex;
+  align-items: end;
+  gap: 6px;
+  min-height: 70px;
+}
+
+.trend-bar-wrap {
+  position: relative;
+  display: grid;
+  grid-template-rows: 44px 16px;
+  justify-items: center;
+  flex: 1 1 0;
+  min-width: 18px;
+}
+
+.trend-bar {
+  align-self: end;
+  width: 100%;
+  max-width: 18px;
+  min-height: 4px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, #0f766e, #14b8a6);
+}
+
+.trend-bar-label {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .table-wrap {
