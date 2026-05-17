@@ -32,6 +32,7 @@ It shows:
   - City: `#/city?date_mode=single&date_preset=yesterday&date=2026-05-16&city=Bangalore`
   - Agent: `#/agent?date_mode=single&date_preset=yesterday&date=2026-05-16&city=Bangalore&agent_id=123`
   - Browser back/forward controls navigation; the app does not use an explicit in-page back button.
+- Breadcrumb navigation follows `Cities -> <City> -> <Agent>` and uses the same URL routes as browser back/forward.
 
 The timeline uses a time-of-day axis instead of one absolute multi-day axis, so one-hour promise slots remain readable even for 7-day or 14-day views.
 

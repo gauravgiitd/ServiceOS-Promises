@@ -475,6 +475,7 @@ function renderCities() {
   els.cityView.innerHTML = `
     <div class="section-head">
       <div>
+        ${breadcrumbs([{ label: "Cities", current: true }])}
         <h2>Cities</h2>
         <p>Click a city to inspect agent-level promise performance.</p>
       </div>
@@ -526,6 +527,10 @@ function renderAgents() {
   els.agentView.innerHTML = `
     <div class="section-head">
       <div>
+        ${breadcrumbs([
+          { label: "Cities", href: buildRouteHash({ view: "cities" }) },
+          { label: state.selectedCity, current: true },
+        ])}
         <h2>${escapeHtml(state.selectedCity)}</h2>
         <p>Agent-level promise metrics. Click an agent to open the timeline.</p>
       </div>
@@ -582,6 +587,11 @@ function renderTimelineView() {
   els.timelineView.innerHTML = `
     <div class="section-head">
       <div>
+        ${breadcrumbs([
+          { label: "Cities", href: buildRouteHash({ view: "cities" }) },
+          { label: state.selectedCity, href: buildRouteHash({ view: "agents", city: state.selectedCity, agentId: null, showExcluded: false }) },
+          { label: agentName, current: true },
+        ])}
         <h2>${escapeHtml(agentName)}</h2>
         <p>${escapeHtml(state.selectedCity)} promise timeline</p>
       </div>
@@ -610,6 +620,23 @@ function renderTimelineView() {
     state.showExcluded = event.target.checked;
     navigateToCurrentRoute();
   });
+}
+
+function breadcrumbs(items) {
+  return `
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      ${items.map(breadcrumbItem).join("")}
+    </nav>
+  `;
+}
+
+function breadcrumbItem(item, index) {
+  const separator = index ? `<span class="breadcrumb-separator" aria-hidden="true">&gt;</span>` : "";
+  const label = escapeHtml(item.label || "");
+  if (item.current) {
+    return `${separator}<span class="breadcrumb-current" aria-current="page">${label}</span>`;
+  }
+  return `${separator}<a href="${escapeAttr(item.href)}">${label}</a>`;
 }
 
 function metricGrid(m) {

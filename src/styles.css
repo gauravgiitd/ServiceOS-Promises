@@ -101,6 +101,39 @@ main {
   font-size: 13px;
 }
 
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 22px;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.breadcrumbs a {
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--line-strong);
+  font-weight: 600;
+}
+
+.breadcrumb-current {
+  max-width: 260px;
+  overflow: hidden;
+  color: #344054;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
