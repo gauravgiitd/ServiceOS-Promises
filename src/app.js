@@ -625,18 +625,19 @@ function renderTimelineView() {
 function breadcrumbs(items) {
   return `
     <nav class="breadcrumbs" aria-label="Breadcrumb">
-      ${items.map(breadcrumbItem).join("")}
+      <ol>
+        ${items.map(breadcrumbItem).join("")}
+      </ol>
     </nav>
   `;
 }
 
-function breadcrumbItem(item, index) {
-  const separator = index ? `<span class="breadcrumb-separator" aria-hidden="true">&gt;</span>` : "";
+function breadcrumbItem(item) {
   const label = escapeHtml(item.label || "");
   if (item.current) {
-    return `${separator}<span class="breadcrumb-current" aria-current="page">${label}</span>`;
+    return `<li><span class="breadcrumb-current" aria-current="page">${label}</span></li>`;
   }
-  return `${separator}<a href="${escapeAttr(item.href)}">${label}</a>`;
+  return `<li><a class="breadcrumb-link" href="${escapeAttr(item.href)}">${label}</a></li>`;
 }
 
 function metricGrid(m) {
