@@ -35,7 +35,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   padding: 14px 24px;
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid var(--line);
@@ -44,13 +44,11 @@ body {
 
 .header-actions {
   display: flex;
-  flex: 0 0 650px;
+  flex: 0 1 520px;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  flex-wrap: wrap;
-  min-width: 520px;
-  width: 650px;
+  min-width: 500px;
 }
 
 h1,
@@ -244,15 +242,9 @@ select {
 
 .date-filter {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   justify-items: end;
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
-  box-sizing: border-box;
+  width: min(100%, 520px);
 }
 
 .date-filter-main {
@@ -273,7 +265,7 @@ select {
 }
 
 .date-filter-value {
-  max-width: 360px;
+  max-width: 300px;
   color: var(--ink);
   font-size: 13px;
   font-weight: 720;
@@ -334,6 +326,11 @@ select {
   justify-items: stretch;
 }
 
+.single-date-inputs {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .preset-chip {
   height: 30px;
   border-radius: 999px;
@@ -351,7 +348,7 @@ select {
   color: #0f766e;
 }
 
-.date-input {
+.date-filter .date-input {
   width: 138px;
   min-width: 0;
   height: 30px;
@@ -364,12 +361,6 @@ select {
   color: var(--muted);
   font-size: 12px;
   text-align: center;
-}
-
-.date-range-placeholder,
-.date-input-placeholder {
-  visibility: hidden;
-  pointer-events: none;
 }
 
 .checkbox {
@@ -926,7 +917,7 @@ tbody tr:hover {
     width: 100%;
   }
 
-  .date-input {
+  .date-filter .date-input {
     width: 100%;
   }
 

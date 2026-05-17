@@ -292,8 +292,6 @@ function singleDayControls() {
     </div>
     <div class="date-range-inputs single-date-inputs">
       <input id="singleDateInput" class="date-input" type="date" min="${min}" max="${max}" value="${value}" />
-      <span class="date-range-separator date-range-placeholder" aria-hidden="true">to</span>
-      <span class="date-input date-input-placeholder" aria-hidden="true"></span>
     </div>
   `;
 }
