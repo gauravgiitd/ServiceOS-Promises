@@ -670,23 +670,29 @@ function agentRow(row) {
 function timeline(records) {
   const minutes = [];
   records.forEach((r) => {
+    ["slot_start_at_ist", "slot_end_at_ist"].forEach((key) => {
+      const minute = minuteOfDay(r[key]);
+      if (minute !== null) minutes.push(minute);
+    });
+
     [
       "scheduled_start_at_ist",
       "start_trip_at_ist",
-      "slot_start_at_ist",
-      "slot_end_at_ist",
       "customer_reached_at_ist",
       "completed_at_ist",
       "rescheduled_at_ist",
       "cancelled_at_ist",
     ].forEach((key) => {
+      if (!isSamePromiseDate(r, r[key])) return;
       const minute = minuteOfDay(r[key]);
       if (minute !== null) minutes.push(minute);
     });
   });
 
-  const rawStartMinute = Math.max(0, Math.min(...minutes) - 45);
-  const rawEndMinute = Math.min(24 * 60, Math.max(...minutes) + 45);
+  const minMinute = minutes.length ? Math.min(...minutes) : 8 * 60;
+  const maxMinute = minutes.length ? Math.max(...minutes) : 20 * 60;
+  const rawStartMinute = Math.max(0, minMinute - 45);
+  const rawEndMinute = Math.min(24 * 60, maxMinute + 45);
   const startMinute = Math.max(0, Math.floor(rawStartMinute / 60) * 60);
   const endMinute = Math.min(24 * 60, Math.ceil(rawEndMinute / 60) * 60);
   const span = Math.max(1, endMinute - startMinute);
@@ -702,14 +708,15 @@ function timeline(records) {
         <div class="axis">
           ${axisTicks(startMinute, endMinute)}
         </div>
-        ${records.map((r) => timelineRow(r, pct)).join("")}
+        ${records.map((r) => timelineRow(r, pct, { startMinute, endMinute, span })).join("")}
       </div>
     </div>
   `;
 }
 
-function timelineRow(r, pct) {
+function timelineRow(r, pct, scale) {
   const statusClass = outcomeClass(r);
+  const edgeLanes = { before: 0, after: 0 };
   const reason = r.raw_reschedule_reason ? `Reason: ${r.raw_reschedule_reason}` : "";
   const newPromise = r.rescheduled_at_ist
     ? `New promise: ${formatDateTime(r.rescheduled_to_slot_start_at_ist)} to ${formatDateTime(r.rescheduled_to_slot_end_at_ist)}
@@ -733,11 +740,11 @@ ${reason}`.trim()
       <div class="slot-bar ${statusClass}" style="left:${pct(r.slot_start_at_ist)}; width:calc(${pct(r.slot_end_at_ist)} - ${pct(r.slot_start_at_ist)});" data-tooltip="${escapeAttr(`Promise slot
 ${formatDateTime(r.slot_start_at_ist)} to ${formatDateTime(r.slot_end_at_ist)}
 Bucket: ${r.promise_bucket}`)}"></div>
-      ${marker("scheduled", r.scheduled_start_at_ist, pct, `Scheduled start\n${formatDateTime(r.scheduled_start_at_ist)}`)}
-      ${marker("trip", r.start_trip_at_ist, pct, `Start trip\n${formatDateTime(r.start_trip_at_ist)}`)}
-      ${marker("reached", r.customer_reached_at_ist, pct, `Reached location\n${formatDateTime(r.customer_reached_at_ist)}`)}
-      ${marker("completed", r.completed_at_ist, pct, `Completed\n${formatDateTime(r.completed_at_ist)}`)}
-      ${marker("change", r.rescheduled_at_ist || r.cancelled_at_ist, pct, changeTooltip)}
+      ${marker("scheduled", markerPlacement(r, r.scheduled_start_at_ist, scale, edgeLanes), `Scheduled start\n${formatDateTime(r.scheduled_start_at_ist)}`)}
+      ${marker("trip", markerPlacement(r, r.start_trip_at_ist, scale, edgeLanes), `Start trip\n${formatDateTime(r.start_trip_at_ist)}`)}
+      ${marker("reached", markerPlacement(r, r.customer_reached_at_ist, scale, edgeLanes), `Reached location\n${formatDateTime(r.customer_reached_at_ist)}`)}
+      ${marker("completed", markerPlacement(r, r.completed_at_ist, scale, edgeLanes), `Completed\n${formatDateTime(r.completed_at_ist)}`)}
+      ${marker("change", markerPlacement(r, r.rescheduled_at_ist || r.cancelled_at_ist, scale, edgeLanes), changeTooltip)}
       <div class="row-outcome">
         <strong>${escapeHtml(humanizeBucket(r.promise_bucket))}</strong>
         ${r.is_not_met_and_no_blockers ? "No-blocker miss<br>" : ""}
@@ -748,9 +755,45 @@ Bucket: ${r.promise_bucket}`)}"></div>
   `;
 }
 
-function marker(type, timestamp, pct, tooltip) {
-  if (!timestamp) return "";
-  return `<span class="marker ${type}" style="left:${pct(timestamp)}" data-tooltip="${escapeAttr(tooltip)}"></span>`;
+function marker(type, placement, tooltip) {
+  if (!placement) return "";
+  const edgeClass = placement.edge ? ` edge-marker ${placement.edge}` : "";
+  const top = placement.top === null ? "" : ` top:${placement.top}px;`;
+  return `<span class="marker ${type}${edgeClass}" style="left:${placement.left};${top}" data-tooltip="${escapeAttr(tooltip)}"></span>`;
+}
+
+function markerPlacement(record, timestamp, scale, edgeLanes) {
+  if (!timestamp) return null;
+  const dt = parseTs(timestamp);
+  if (!dt) return null;
+
+  const visibleDate = record.promise_date || timestampDate(record.slot_start_at_ist) || timestampDate(timestamp);
+  const markerMs = dt.getTime();
+  const startMs = localDateMinuteMs(visibleDate, scale.startMinute);
+  const endMs = localDateMinuteMs(visibleDate, scale.endMinute);
+
+  if (markerMs < startMs) {
+    return edgePlacement("before", edgeLanes);
+  }
+  if (markerMs > endMs) {
+    return edgePlacement("after", edgeLanes);
+  }
+
+  const minute = minuteOfDay(timestamp);
+  if (minute === null) return null;
+  const left = Math.max(0, Math.min(100, ((minute - scale.startMinute) / scale.span) * 100));
+  return { left: `${left}%`, edge: null, top: null };
+}
+
+function edgePlacement(edge, edgeLanes) {
+  const lane = edgeLanes[edge] || 0;
+  edgeLanes[edge] = lane + 1;
+  const top = 10 + lane * 14;
+  return {
+    left: edge === "before" ? "0%" : "100%",
+    edge,
+    top,
+  };
 }
 
 function axisTicks(startMinute, endMinute) {
@@ -770,6 +813,25 @@ function minuteOfDay(value) {
   const dt = parseTs(value);
   if (!dt) return null;
   return dt.getHours() * 60 + dt.getMinutes();
+}
+
+function isSamePromiseDate(record, timestamp) {
+  if (!timestamp) return false;
+  const promiseDate = record.promise_date || timestampDate(record.slot_start_at_ist);
+  return Boolean(promiseDate && timestampDate(timestamp) === promiseDate);
+}
+
+function timestampDate(value) {
+  return value ? String(value).slice(0, 10) : "";
+}
+
+function localDateMinuteMs(dateString, minute) {
+  const dayOffset = Math.floor(minute / (24 * 60));
+  const minuteOfDate = minute % (24 * 60);
+  const base = new Date(`${dateString}T00:00:00`);
+  base.setDate(base.getDate() + dayOffset);
+  base.setHours(Math.floor(minuteOfDate / 60), minuteOfDate % 60, 0, 0);
+  return base.getTime();
 }
 
 function minuteLabel(minute) {
