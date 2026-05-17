@@ -159,6 +159,8 @@ def write_json(csv_text, source_watermark=None):
     JSON_PATH.write_text(json.dumps(records, separators=(",", ":")))
 
     dates = sorted({row["promise_date"] for row in records if row.get("promise_date")})
+    slot_starts = sorted({row["slot_start_at_ist"] for row in records if row.get("slot_start_at_ist")})
+    slot_ends = sorted({row["slot_end_at_ist"] for row in records if row.get("slot_end_at_ist")})
     metadata = {
         "generated_at": datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S %Z"),
         "source": str(SQL_PATH.relative_to(ROOT)),
@@ -169,6 +171,13 @@ def write_json(csv_text, source_watermark=None):
             "end_date": dates[-1],
         }
         if dates
+        else None,
+        "task_time_range": {
+            "earliest_slot_start_at_ist": slot_starts[0],
+            "latest_slot_start_at_ist": slot_starts[-1],
+            "latest_slot_end_at_ist": slot_ends[-1],
+        }
+        if slot_starts and slot_ends
         else None,
     }
     META_PATH.write_text(json.dumps(metadata, indent=2))

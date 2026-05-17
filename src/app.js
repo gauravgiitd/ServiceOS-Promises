@@ -114,19 +114,38 @@ async function refreshDataIfChanged() {
 function metadataVersion(metadata) {
   if (!metadata) return "";
   const range = metadata.date_range || {};
+  const taskTimeRange = metadata.task_time_range || {};
   return [
     metadata.generated_at || "",
     metadata.record_count || "",
     range.start_date || "",
     range.end_date || "",
+    taskTimeRange.latest_slot_end_at_ist || "",
   ].join("|");
 }
 
 function renderMeta() {
   const meta = state.metadata || {};
   const range = meta.date_range ? `${meta.date_range.start_date} to ${meta.date_range.end_date}` : "no date range";
-  const generated = meta.generated_at ? `generated ${meta.generated_at}` : "not generated yet";
-  els.dataMeta.textContent = `${formatInt(meta.record_count || state.records.length)} promise instances, ${range}, ${generated}`;
+  const taskCoverage = latestTaskCoverageTime();
+  const coverage = taskCoverage ? `tasks through ${formatMetadataTime(taskCoverage)}` : "task coverage unavailable";
+  els.dataMeta.textContent = `${formatInt(meta.record_count || state.records.length)} promise instances, ${range}, ${coverage}`;
+}
+
+function latestTaskCoverageTime() {
+  const metadataCoverage = state.metadata?.task_time_range?.latest_slot_end_at_ist;
+  if (metadataCoverage) return metadataCoverage;
+
+  return state.records.reduce((latest, record) => {
+    const value = record.slot_end_at_ist || record.slot_start_at_ist;
+    if (!value) return latest;
+    return !latest || value > latest ? value : latest;
+  }, null);
+}
+
+function formatMetadataTime(value) {
+  const match = String(value || "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+  return match ? `${match[1]} ${match[2]} IST` : value;
 }
 
 async function initSyncControls() {
