@@ -569,9 +569,10 @@ function rangePresetForDates(startDate, endDate) {
   return "custom";
 }
 
-window.addEventListener("hashchange", async () => {
+window.addEventListener("hashchange", () => {
   applyRouteFromUrl();
-  if (!(await refreshDataIfChanged())) render();
+  render();
+  refreshDataIfChanged().catch((error) => console.error(error));
 });
 
 window.addEventListener("focus", () => {
