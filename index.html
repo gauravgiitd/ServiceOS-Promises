@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ServiceOS Promises</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>ServiceOS Promises</h1>
+        <p id="dataMeta">Loading promise data...</p>
+      </div>
+      <div class="header-actions">
+        <div id="dateFilterRoot" class="date-filter" aria-label="Date filter"></div>
+        <button id="backButton" class="ghost-button" hidden>Back</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="cityView" class="view"></section>
+      <section id="agentView" class="view" hidden></section>
+      <section id="timelineView" class="view" hidden></section>
+    </main>
+
+    <div id="tooltip" class="tooltip" hidden></div>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
