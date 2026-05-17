@@ -724,8 +724,9 @@ function trendSeries(daily, key, options = {}) {
 }
 
 function trendPopover(label, trend) {
+  const width = trendWidth(trend.length);
   return `
-    <div class="metric-trend" role="presentation">
+    <div class="metric-trend" role="presentation" style="--trend-count:${trend.length}; --trend-width:${width}px">
       <div class="metric-trend-head">
         <span>${escapeHtml(label)} trend</span>
         <small>${escapeHtml(trendWindowLabel())}</small>
@@ -736,6 +737,10 @@ function trendPopover(label, trend) {
       </div>
     </div>
   `;
+}
+
+function trendWidth(pointCount) {
+  return Math.min(448, Math.max(238, pointCount * 30 + 28));
 }
 
 function trendBar(point) {
