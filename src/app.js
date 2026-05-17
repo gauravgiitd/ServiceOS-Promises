@@ -711,16 +711,29 @@ function trendDays() {
 function trendSeries(daily, key, options = {}) {
   const values = daily.map((entry) => Number(entry.metrics[key] || 0));
   const max = Math.max(...values, options.format === "pct" ? 100 : 1);
-  const labelStep = daily.length <= 7 ? 1 : Math.ceil((daily.length - 1) / 4);
+  const labelIndexes = trendLabelIndexes(daily.length);
   return daily.map((entry, index) => ({
     date: entry.day,
     label: shortDate(entry.day),
-    showLabel: index === 0 || index === daily.length - 1 || (index % labelStep === 0 && index <= daily.length - 1 - labelStep),
+    showLabel: labelIndexes.has(index),
     value: values[index],
     formatted: options.format === "pct" ? `${formatPct(values[index])}%` : formatInt(values[index]),
     compact: options.format === "pct" ? `${Math.round(values[index])}%` : formatCompact(values[index]),
     height: Math.max(4, Math.round((values[index] / max) * 42)),
   }));
+}
+
+function trendLabelIndexes(pointCount) {
+  if (pointCount <= 1) return new Set([0]);
+  if (pointCount <= 4) return new Set([0, pointCount - 1]);
+  if (pointCount <= 7) return new Set([0, Math.floor((pointCount - 1) / 2), pointCount - 1]);
+
+  const step = Math.ceil((pointCount - 1) / 4);
+  const indexes = new Set([0, pointCount - 1]);
+  for (let index = step; index < pointCount - 1; index += step) {
+    if (pointCount - 1 - index >= 2) indexes.add(index);
+  }
+  return indexes;
 }
 
 function trendPopover(label, trend) {
