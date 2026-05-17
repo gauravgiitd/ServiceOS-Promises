@@ -20,6 +20,7 @@ const FAILURE_BUCKETS = new Set([
   "NOT_MET_REACHED_TOO_LATE",
   "NOT_MET_REST_REASONS",
 ]);
+const DATE_PRESETS = new Set(["yesterday", "dayBefore", "last7", "last14"]);
 
 const state = {
   records: [],
@@ -42,7 +43,6 @@ const state = {
 const els = {
   dataMeta: document.getElementById("dataMeta"),
   dateFilterRoot: document.getElementById("dateFilterRoot"),
-  backButton: document.getElementById("backButton"),
   cityView: document.getElementById("cityView"),
   agentView: document.getElementById("agentView"),
   timelineView: document.getElementById("timelineView"),
@@ -60,6 +60,7 @@ async function init() {
     state.records = records;
     state.metadata = metadata;
     applyDatePreset("yesterday", { rerender: false });
+    applyRouteFromUrl({ replaceMissing: true });
     renderMeta();
     render();
   } catch (error) {
@@ -81,7 +82,6 @@ function render() {
   els.cityView.hidden = state.view !== "cities";
   els.agentView.hidden = state.view !== "agents";
   els.timelineView.hidden = state.view !== "timeline";
-  els.backButton.hidden = state.view === "cities";
 
   if (state.view === "cities") renderCities();
   if (state.view === "agents") renderAgents();
@@ -117,7 +117,7 @@ function renderDateFilter() {
         applyDatePreset("last7", { rerender: false });
       }
       resetDrilldownIfEmpty();
-      render();
+      navigateToCurrentRoute();
     });
   });
 
@@ -132,7 +132,7 @@ function renderDateFilter() {
       state.dateFilter.preset = "custom";
       state.dateFilter.singleDate = clampDate(event.target.value);
       resetDrilldownIfEmpty();
-      render();
+      navigateToCurrentRoute();
     });
   }
 
@@ -152,7 +152,7 @@ function renderDateFilter() {
         state.dateFilter.endDate = start;
       }
       resetDrilldownIfEmpty();
-      render();
+      navigateToCurrentRoute();
     };
     startInput.addEventListener("change", updateRange);
     endInput.addEventListener("change", updateRange);
@@ -216,7 +216,7 @@ function applyDatePreset(preset, options = {}) {
   if (state.dateFilter.startDate && state.dateFilter.startDate < min) state.dateFilter.startDate = min;
   if (state.dateFilter.endDate && state.dateFilter.endDate > max) state.dateFilter.endDate = max;
   resetDrilldownIfEmpty();
-  if (rerender) render();
+  if (rerender) navigateToCurrentRoute();
 }
 
 function activeDateRange() {
@@ -309,14 +309,121 @@ function isoToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-els.backButton.addEventListener("click", () => {
-  if (state.view === "timeline") {
-    state.view = "agents";
-    state.selectedAgentId = null;
-  } else {
-    state.view = "cities";
-    state.selectedCity = null;
+function applyRouteFromUrl(options = {}) {
+  const route = parseRoute();
+  applyDateParams(route.params);
+
+  state.view = route.view;
+  state.selectedCity = route.city;
+  state.selectedAgentId = route.agentId;
+  state.showExcluded = route.showExcluded;
+  resetDrilldownIfEmpty();
+
+  if (window.location.hash !== buildRouteHash()) {
+    history.replaceState(null, "", buildRouteHash());
   }
+}
+
+function parseRoute() {
+  const hash = window.location.hash.replace(/^#/, "");
+  const [rawPath = "", rawQuery = ""] = hash.split("?");
+  const path = rawPath || "/global";
+  const params = new URLSearchParams(rawQuery);
+  const city = params.get("city") || null;
+  const agentId = params.get("agent_id") || null;
+
+  if (path === "/agent" && city && agentId) {
+    return { view: "timeline", city, agentId, params, showExcluded: params.get("show_excluded") === "1" };
+  }
+
+  if (path === "/city" && city) {
+    return { view: "agents", city, agentId: null, params, showExcluded: false };
+  }
+
+  return { view: "cities", city: null, agentId: null, params, showExcluded: false };
+}
+
+function applyDateParams(params) {
+  const mode = params.get("date_mode");
+  const preset = params.get("date_preset");
+
+  if (DATE_PRESETS.has(preset)) {
+    applyDatePreset(preset, { rerender: false });
+    return;
+  }
+
+  if (mode === "single") {
+    state.dateFilter.mode = "single";
+    state.dateFilter.preset = "custom";
+    state.dateFilter.singleDate = clampDate(params.get("date") || activeDateRange().start);
+    return;
+  }
+
+  if (mode === "range") {
+    state.dateFilter.mode = "range";
+    state.dateFilter.preset = "custom";
+    const start = clampDate(params.get("start_date") || activeDateRange().start);
+    const end = clampDate(params.get("end_date") || activeDateRange().end);
+    state.dateFilter.startDate = start <= end ? start : end;
+    state.dateFilter.endDate = start <= end ? end : start;
+  }
+}
+
+function navigateToCurrentRoute(options = {}) {
+  const hash = buildRouteHash();
+  if (window.location.hash === hash) {
+    render();
+    return;
+  }
+
+  if (options.replace) {
+    history.replaceState(null, "", hash);
+    render();
+  } else {
+    window.location.hash = hash;
+  }
+}
+
+function buildRouteHash(overrides = {}) {
+  const view = overrides.view || state.view;
+  const city = overrides.city ?? state.selectedCity;
+  const agentId = overrides.agentId ?? state.selectedAgentId;
+  const showExcluded = overrides.showExcluded ?? state.showExcluded;
+  const params = routeDateParams();
+
+  if (view === "timeline" && city && agentId) {
+    params.set("city", city);
+    params.set("agent_id", agentId);
+    if (showExcluded) params.set("show_excluded", "1");
+    return `#/agent?${params.toString()}`;
+  }
+
+  if (view === "agents" && city) {
+    params.set("city", city);
+    return `#/city?${params.toString()}`;
+  }
+
+  return `#/global?${params.toString()}`;
+}
+
+function routeDateParams() {
+  const params = new URLSearchParams();
+  params.set("date_mode", state.dateFilter.mode);
+  params.set("date_preset", state.dateFilter.preset);
+
+  if (state.dateFilter.mode === "single") {
+    params.set("date", activeDateRange().start);
+  } else {
+    const range = activeDateRange();
+    params.set("start_date", range.start);
+    params.set("end_date", range.end);
+  }
+
+  return params;
+}
+
+window.addEventListener("hashchange", () => {
+  applyRouteFromUrl();
   render();
 });
 
@@ -362,7 +469,7 @@ function renderCities() {
       state.selectedCity = row.dataset.city;
       state.sort = { key: "valid_promises", direction: "desc" };
       state.view = "agents";
-      render();
+      navigateToCurrentRoute();
     });
   });
 }
@@ -419,7 +526,7 @@ function renderAgents() {
     row.addEventListener("click", () => {
       state.selectedAgentId = row.dataset.agentId;
       state.view = "timeline";
-      render();
+      navigateToCurrentRoute();
     });
   });
 }
@@ -462,7 +569,7 @@ function renderTimelineView() {
 
   els.timelineView.querySelector("#showExcluded").addEventListener("change", (event) => {
     state.showExcluded = event.target.checked;
-    renderTimelineView();
+    navigateToCurrentRoute();
   });
 }
 

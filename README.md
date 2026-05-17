@@ -27,6 +27,11 @@ It shows:
   - Day mode: Yesterday, Day before, or custom date.
   - Range mode: Last 7 days, Last 14 days, or custom range.
   - The filter applies across city, agent, and timeline pages.
+- URL-driven navigation:
+  - Global: `#/global?date_mode=single&date_preset=yesterday&date=2026-05-16`
+  - City: `#/city?date_mode=single&date_preset=yesterday&date=2026-05-16&city=Bangalore`
+  - Agent: `#/agent?date_mode=single&date_preset=yesterday&date=2026-05-16&city=Bangalore&agent_id=123`
+  - Browser back/forward controls navigation; the app does not use an explicit in-page back button.
 
 The timeline uses a time-of-day axis instead of one absolute multi-day axis, so one-hour promise slots remain readable even for 7-day or 14-day views.
 
