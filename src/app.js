@@ -728,6 +728,7 @@ function trendPopover(label, trend) {
       <div class="metric-trend-head">
         <span>${escapeHtml(label)} trend</span>
         <small>${escapeHtml(trendWindowLabel())}</small>
+        <button class="metric-trend-close" type="button" aria-label="Close trend" data-trend-close>&times;</button>
       </div>
       <div class="trend-bars">
         ${trend.map(trendBar).join("")}
@@ -738,10 +739,10 @@ function trendPopover(label, trend) {
 
 function trendBar(point) {
   return `
-    <div class="trend-bar-wrap" data-tooltip="${escapeAttr(`${point.label}\n${point.formatted}`)}">
+    <button class="trend-bar-wrap" type="button" data-trend-date="${escapeAttr(point.date)}" data-tooltip="${escapeAttr(`${point.label}\n${point.formatted}\nClick to view this day`)}" aria-label="View ${escapeAttr(point.label)}">
       <div class="trend-bar" style="height:${point.height}px"></div>
       <div class="trend-bar-label">${point.showLabel ? escapeHtml(point.label) : ""}</div>
-    </div>
+    </button>
   `;
 }
 
@@ -749,6 +750,23 @@ function trendWindowLabel() {
   const days = trendDays();
   if (state.dateFilter.mode === "single") return "Last 7 days";
   return days.length === 1 ? "Selected day" : `${days.length} days`;
+}
+
+function closeMetricTrend(metric, options = {}) {
+  if (!metric) return;
+  const { dismiss = true } = options;
+  if (dismiss) metric.classList.add("trend-dismissed");
+  metric.blur();
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && metric.contains(active)) active.blur();
+}
+
+function openTrendDate(dateString) {
+  state.dateFilter.mode = "single";
+  state.dateFilter.singleDate = clampDate(dateString);
+  state.dateFilter.preset = singlePresetForDate(state.dateFilter.singleDate);
+  resetDrilldownIfEmpty();
+  navigateToCurrentRoute();
 }
 
 function cityRow(row) {
@@ -1131,6 +1149,48 @@ document.addEventListener("mousemove", (event) => {
   const top = Math.min(event.clientY + offset, window.innerHeight - rect.height - 12);
   els.tooltip.style.left = `${left}px`;
   els.tooltip.style.top = `${top}px`;
+});
+
+document.addEventListener("click", (event) => {
+  const closeButton = event.target.closest("[data-trend-close]");
+  if (closeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeMetricTrend(closeButton.closest(".metric"));
+    els.tooltip.hidden = true;
+    return;
+  }
+
+  const trendDate = event.target.closest("[data-trend-date]");
+  if (trendDate) {
+    event.preventDefault();
+    event.stopPropagation();
+    openTrendDate(trendDate.dataset.trendDate);
+    els.tooltip.hidden = true;
+    return;
+  }
+
+  const metric = event.target.closest(".metric");
+  if (metric) {
+    metric.classList.remove("trend-dismissed");
+    return;
+  }
+
+  if (!metric) {
+    document.querySelectorAll(".metric").forEach((metric) => closeMetricTrend(metric, { dismiss: false }));
+  }
+});
+
+document.addEventListener("pointerout", (event) => {
+  const metric = event.target.closest(".metric");
+  if (!metric || metric.contains(event.relatedTarget)) return;
+  metric.classList.remove("trend-dismissed");
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".metric").forEach((metric) => closeMetricTrend(metric, { dismiss: metric.matches(":hover") }));
+  els.tooltip.hidden = true;
 });
 
 document.addEventListener("mouseleave", () => {

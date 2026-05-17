@@ -387,8 +387,8 @@ button:hover {
   box-shadow: 0 10px 24px rgba(15, 118, 110, 0.1);
 }
 
-.metric:hover .metric-trend,
-.metric:focus-within .metric-trend {
+.metric:not(.trend-dismissed):hover .metric-trend,
+.metric:not(.trend-dismissed):focus-within .metric-trend {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
@@ -397,8 +397,7 @@ button:hover {
 .metric-trend-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 10px;
   color: var(--ink);
   font-size: 12px;
@@ -406,10 +405,32 @@ button:hover {
 }
 
 .metric-trend-head small {
+  margin-left: auto;
   color: var(--muted);
   font-size: 11px;
   font-weight: 650;
   white-space: nowrap;
+}
+
+.metric-trend-close {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.metric-trend-close:hover {
+  border-color: var(--line);
+  background: var(--gray-soft);
+  color: var(--ink);
 }
 
 .trend-bars {
@@ -426,6 +447,23 @@ button:hover {
   justify-items: center;
   flex: 1 1 0;
   min-width: 18px;
+  height: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.trend-bar-wrap:hover .trend-bar,
+.trend-bar-wrap:focus-visible .trend-bar {
+  background: linear-gradient(180deg, #0b5f59, #0f766e);
+  box-shadow: 0 0 0 3px #ccfbf1;
+}
+
+.trend-bar-wrap:focus-visible {
+  outline: none;
 }
 
 .trend-bar {
