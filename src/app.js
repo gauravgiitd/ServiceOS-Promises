@@ -20,7 +20,9 @@ const FAILURE_BUCKETS = new Set([
   "NOT_MET_REACHED_TOO_LATE",
   "NOT_MET_REST_REASONS",
 ]);
-const DATE_PRESETS = new Set(["yesterday", "dayBefore", "last7", "last14"]);
+const SINGLE_DATE_PRESETS = new Set(["yesterday", "dayBefore"]);
+const RANGE_DATE_PRESETS = new Set(["last7", "last14"]);
+const DATE_PRESETS = new Set([...SINGLE_DATE_PRESETS, ...RANGE_DATE_PRESETS]);
 
 const state = {
   records: [],
@@ -109,13 +111,7 @@ function renderDateFilter() {
 
   els.dateFilterRoot.querySelectorAll("[data-date-mode]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.dateFilter.mode = button.dataset.dateMode;
-      if (state.dateFilter.mode === "single" && !state.dateFilter.singleDate) {
-        applyDatePreset("yesterday", { rerender: false });
-      }
-      if (state.dateFilter.mode === "range" && (!state.dateFilter.startDate || !state.dateFilter.endDate)) {
-        applyDatePreset("last7", { rerender: false });
-      }
+      setDateMode(button.dataset.dateMode);
       resetDrilldownIfEmpty();
       navigateToCurrentRoute();
     });
@@ -190,6 +186,28 @@ function rangeControls() {
 function datePresetButton(preset, label) {
   const active = state.dateFilter.preset === preset ? " active" : "";
   return `<button class="preset-chip${active}" data-date-preset="${preset}">${escapeHtml(label)}</button>`;
+}
+
+function setDateMode(mode) {
+  const currentRange = activeDateRange();
+
+  if (mode === "single") {
+    state.dateFilter.mode = "single";
+    state.dateFilter.singleDate = clampDate(state.dateFilter.singleDate || currentRange.end);
+    state.dateFilter.preset = singlePresetForDate(state.dateFilter.singleDate);
+    return;
+  }
+
+  if (mode === "range") {
+    state.dateFilter.mode = "range";
+    if (!state.dateFilter.startDate || !state.dateFilter.endDate) {
+      applyDatePreset("last7", { rerender: false });
+      return;
+    }
+    state.dateFilter.startDate = clampDate(state.dateFilter.startDate);
+    state.dateFilter.endDate = clampDate(state.dateFilter.endDate);
+    state.dateFilter.preset = rangePresetForDates(state.dateFilter.startDate, state.dateFilter.endDate);
+  }
 }
 
 function applyDatePreset(preset, options = {}) {
@@ -347,7 +365,7 @@ function applyDateParams(params) {
   const mode = params.get("date_mode");
   const preset = params.get("date_preset");
 
-  if (DATE_PRESETS.has(preset)) {
+  if (DATE_PRESETS.has(preset) && presetMatchesMode(mode, preset)) {
     applyDatePreset(preset, { rerender: false });
     return;
   }
@@ -367,6 +385,12 @@ function applyDateParams(params) {
     state.dateFilter.startDate = start <= end ? start : end;
     state.dateFilter.endDate = start <= end ? end : start;
   }
+}
+
+function presetMatchesMode(mode, preset) {
+  if (mode === "single") return SINGLE_DATE_PRESETS.has(preset);
+  if (mode === "range") return RANGE_DATE_PRESETS.has(preset);
+  return DATE_PRESETS.has(preset);
 }
 
 function navigateToCurrentRoute(options = {}) {
@@ -408,8 +432,9 @@ function buildRouteHash(overrides = {}) {
 
 function routeDateParams() {
   const params = new URLSearchParams();
+  const preset = presetMatchesMode(state.dateFilter.mode, state.dateFilter.preset) ? state.dateFilter.preset : "custom";
   params.set("date_mode", state.dateFilter.mode);
-  params.set("date_preset", state.dateFilter.preset);
+  params.set("date_preset", preset);
 
   if (state.dateFilter.mode === "single") {
     params.set("date", activeDateRange().start);
@@ -420,6 +445,20 @@ function routeDateParams() {
   }
 
   return params;
+}
+
+function singlePresetForDate(dateString) {
+  const { max } = dataDateBounds();
+  if (dateString === clampDate(addDays(max, -1))) return "yesterday";
+  if (dateString === clampDate(addDays(max, -2))) return "dayBefore";
+  return "custom";
+}
+
+function rangePresetForDates(startDate, endDate) {
+  const { max } = dataDateBounds();
+  if (startDate === clampDate(addDays(max, -6)) && endDate === max) return "last7";
+  if (startDate === clampDate(addDays(max, -13)) && endDate === max) return "last14";
+  return "custom";
 }
 
 window.addEventListener("hashchange", () => {
