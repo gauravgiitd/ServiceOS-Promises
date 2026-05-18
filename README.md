@@ -53,6 +53,30 @@ Open:
 http://127.0.0.1:5174/
 ```
 
+## Miniapps Compatibility
+
+The repo includes a checked-in `Dockerfile` and `miniapps.yaml` for Miniapps deployment. The container runs:
+
+```text
+python3 scripts/app_server.py
+```
+
+with:
+
+```text
+HOST=0.0.0.0
+PORT=8080
+SERVICEOS_SYNC_ENABLED=false
+```
+
+Miniapps route proof uses:
+
+- `/`
+- `/health`
+- `/miniapps/probe`
+
+The Miniapps deployment serves the checked-in app shell and any data files present in the build context. The generated production data files under `data/` are intentionally ignored by git today, so a Git-based Miniapps deployment will open with an empty dashboard unless data is provided through a durable Miniapps resource, intentionally bundled, or refreshed through an enabled BigQuery integration. BigQuery sync is disabled by default in Miniapps because the existing local sync path depends on external credentials and BigQuery tooling.
+
 The older static server still works for read-only viewing, but it cannot run BigQuery sync:
 
 ```bash

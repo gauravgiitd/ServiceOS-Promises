@@ -1,0 +1,64 @@
+schema_version: miniapps/v0
+app:
+  slug: serviceos-promises
+  name: ServiceOS Promises
+  description: Analytics dashboard for ServiceOS customer promise performance.
+  template_id: static-publication
+  owner_email: gauravgiitd@users.noreply.github.com
+  workspace_slug: default
+source:
+  app_path: .
+  build_context: .
+runtime:
+  service_pattern: api
+  packaging_strategy: inferred_runtime
+  build_strategy: dockerfile
+  port: 8080
+  healthcheck_path: /health
+components:
+  - name: web
+    kind: api_service
+    source_path: .
+    build_context: .
+    dockerfile_path: Dockerfile
+    build_strategy: dockerfile
+    service_pattern: api
+    container_port: 8080
+    healthcheck_path: /health
+    public_routes:
+      - /
+    env_vars:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      SERVICEOS_SYNC_ENABLED: "false"
+resources: []
+access:
+  owners:
+    - kind: user
+      id: gauravgiitd@users.noreply.github.com
+  catalog_visibility: discoverable_requestable
+  default_role: app_viewer
+deploy:
+  target: miniapps-managed
+  adapter: auto
+  default_environment: preview
+  environments:
+    - name: preview
+      branch: pr-*
+      auto_deploy: true
+      approval_required: false
+      ttl_days: 3
+    - name: production
+      branch: main
+      auto_deploy: false
+      approval_required: true
+  route_proof:
+    root_path: /
+    health_paths:
+      - /health
+    probe_paths:
+      - /
+      - /miniapps/probe
+    expected_text:
+      /: ServiceOS Promises
+      /miniapps/probe: ServiceOS Promises

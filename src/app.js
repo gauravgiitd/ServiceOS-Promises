@@ -81,12 +81,25 @@ async function loadData() {
   state.metadata = metadata;
 }
 
-function loadRecords() {
-  return fetch(`${DATA_URL}?t=${Date.now()}`).then((r) => r.json());
+async function loadRecords() {
+  const response = await fetch(`${DATA_URL}?t=${Date.now()}`);
+  if (response.status === 404) return [];
+  if (!response.ok) throw new Error("Could not load generated promise data");
+  return response.json();
 }
 
-function loadMetadata() {
-  return fetch(`${META_URL}?t=${Date.now()}`).then((r) => r.json());
+async function loadMetadata() {
+  const response = await fetch(`${META_URL}?t=${Date.now()}`);
+  if (response.status === 404) {
+    return {
+      generated_at: null,
+      record_count: 0,
+      date_range: null,
+      task_time_range: null,
+    };
+  }
+  if (!response.ok) throw new Error("Could not load generated promise metadata");
+  return response.json();
 }
 
 async function refreshDataIfChanged() {
@@ -155,6 +168,12 @@ async function initSyncControls() {
     const response = await fetch("/api/sync/status");
     if (!response.ok) throw new Error("Sync API unavailable");
     const payload = await response.json();
+    if (payload.sync_enabled === false) {
+      els.syncButton.disabled = true;
+      els.syncButton.title = payload.sync?.message || "BigQuery sync is disabled for this deployment";
+      setSyncUi({ running: false, message: payload.sync?.message || "" });
+      return;
+    }
     els.syncButton.disabled = Boolean(payload.sync?.running);
     if (payload.sync?.running) pollSync();
   } catch (error) {
@@ -167,7 +186,10 @@ async function startSync() {
   setSyncUi({ running: true, message: "Starting BigQuery sync..." });
   try {
     const response = await fetch("/api/sync", { method: "POST" });
-    if (!response.ok) throw new Error("Could not start sync");
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.sync?.error || "Could not start sync");
+    }
     pollSync();
   } catch (error) {
     setSyncUi({ running: false, error: String(error.message || error) });

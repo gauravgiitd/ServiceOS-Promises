@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -9,8 +10,9 @@ import refresh_data
 
 
 ROOT = Path(__file__).resolve().parents[1]
-HOST = "127.0.0.1"
-PORT = 5174
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = int(os.environ.get("PORT", "5174"))
+SYNC_ENABLED = os.environ.get("SERVICEOS_SYNC_ENABLED", "true").lower() not in {"0", "false", "no"}
 
 sync_lock = threading.RLock()
 sync_state = {
@@ -24,6 +26,16 @@ sync_state = {
 
 def metadata_payload():
     return refresh_data.read_metadata()
+
+
+def data_status():
+    metadata = metadata_payload()
+    return {
+        "data_loaded": bool(metadata.get("record_count")),
+        "record_count": metadata.get("record_count", 0),
+        "date_range": metadata.get("date_range"),
+        "task_time_range": metadata.get("task_time_range"),
+    }
 
 
 def update_sync(stage, message):
@@ -77,7 +89,18 @@ class AppHandler(SimpleHTTPRequestHandler):
         if path == "/api/sync/status":
             self.write_json({
                 "sync": current_sync_state(),
+                "sync_enabled": SYNC_ENABLED,
                 "metadata": metadata_payload(),
+            })
+            return
+        if path == "/health":
+            self.write_json({"status": "ok", **data_status()})
+            return
+        if path == "/miniapps/probe":
+            self.write_json({
+                "status": "ok",
+                "app": "ServiceOS Promises",
+                **data_status(),
             })
             return
         self.disable_conditional_cache()
@@ -99,10 +122,22 @@ class AppHandler(SimpleHTTPRequestHandler):
         if path != "/api/sync":
             self.send_error(404)
             return
+        if not SYNC_ENABLED:
+            self.write_json({
+                "sync": {
+                    "running": False,
+                    "stage": "disabled",
+                    "message": "BigQuery sync is disabled for this deployment.",
+                    "result": None,
+                    "error": "BigQuery sync is disabled for this deployment.",
+                },
+                "sync_enabled": False,
+            }, status=503)
+            return
 
         with sync_lock:
             if sync_state["running"]:
-                self.write_json({"sync": current_sync_state()}, status=202)
+                self.write_json({"sync": current_sync_state(), "sync_enabled": SYNC_ENABLED}, status=202)
                 return
             sync_state.update({
                 "running": True,
@@ -114,7 +149,7 @@ class AppHandler(SimpleHTTPRequestHandler):
 
         thread = threading.Thread(target=run_sync_job, daemon=True)
         thread.start()
-        self.write_json({"sync": current_sync_state()}, status=202)
+        self.write_json({"sync": current_sync_state(), "sync_enabled": SYNC_ENABLED}, status=202)
 
     def write_json(self, payload, status=200):
         body = json.dumps(payload).encode("utf-8")

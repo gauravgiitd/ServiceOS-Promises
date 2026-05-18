@@ -1,0 +1,10 @@
+.git
+.DS_Store
+__pycache__/
+*.py[cod]
+data/*
+!data/.gitkeep
+.env
+.env.*
+*.jsonl
+*_raw_bq_output.csv
